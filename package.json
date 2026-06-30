@@ -14,11 +14,15 @@
   },
   "build": {
     "appId": "com.mik.railway",
-    "productName": "Mik轨道交通",
+    "productName": "Mik Railways",
+    "electronVersion": "33.0.0",
     "files": ["main.js", "preload.js", "page/**/*"],
     "win": {
       "target": "portable",
       "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "MikRailways.exe"
     }
   }
 }
