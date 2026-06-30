@@ -25,6 +25,50 @@ npx electron .
 
 站点和线路数据由 `railway_data.json` 定义，格式见 `page/README.md`。
 
+示例：
+
+```json
+{
+  "version": "1.1",
+  "lastUpdated": {"y": 2025, "m": 12, "d": 29},
+  "systemInfo": {"network": "轨道交通"},
+  "lines": [
+    {"lineId": "L001", "lineName": "Line 2", "color": "#4CAF50", "type": "Metro"}
+  ],
+  "stations": [
+    {
+      "stationId": "ST001",
+      "name": "木耳镇站",
+      "district": "主城区",
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": 2,
+          "coordinate": {"x": 126, "y": 79, "z": 553},
+          "direction": "e,w",
+          "lineId": "L001",
+          "tracks": 2
+        }
+      ]
+    }
+  ]
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `lineId` | 线路唯一标识 |
+| `lineName` | 线路名称 |
+| `color` | 线路颜色 (hex) |
+| `type` | 类型: Metro / Planned |
+| `stationId` | 站点唯一标识 |
+| `name` | 站点名称 |
+| `district` | 所属区域 |
+| `level` | 楼层 (正=地上, 负=地下) |
+| `coordinate` | x,y,z 坐标 |
+| `direction` | 方向: e,w 或 s,n |
+| `tracks` | 轨道数 |
+
 ## 功能
 
 - 3D 地图 — Three.js 渲染，自由视角
