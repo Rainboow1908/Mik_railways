@@ -62,6 +62,8 @@ function createWindow() {
     const data = await tryFetchJSON();
     if (data) {
       mainWindow.webContents.send('load-data', data);
+    } else {
+      mainWindow.webContents.send('load-error', '网络获取失败，请使用 文件→打开本地JSON');
     }
 
     // 更新检测（静默，不阻塞）

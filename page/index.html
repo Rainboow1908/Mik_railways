@@ -145,6 +145,7 @@ try {
   data = await new Promise((resolve, reject) => {
     if (window.railwayAPI) {
       window.railwayAPI.onData(d => resolve(d));
+      window.railwayAPI.onError(msg => reject(new Error(msg)));
       setTimeout(() => reject(new Error('等待JSON超时，请用 文件→打开JSON 选择文件')), 8000);
     } else {
       // fallback: 浏览器直接打开

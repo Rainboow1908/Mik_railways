@@ -72,6 +72,7 @@ try {
   data = await new Promise((resolve, reject) => {
     if (window.railwayAPI) {
       window.railwayAPI.onData(d => resolve(d));
+      window.railwayAPI.onError(msg => reject(new Error(msg)));
       setTimeout(() => reject(new Error('等待JSON超时')), 8000);
     } else {
       fetch('railway_data.json').then(r => r.json()).then(resolve).catch(reject);
