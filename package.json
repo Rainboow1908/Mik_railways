@@ -19,7 +19,8 @@
     "files": ["main.js", "preload.js", "page/**/*"],
     "win": {
       "target": "portable",
-      "icon": "icon.ico"
+      "icon": "icon.ico",
+      "signAndEditExecutable": false
     },
     "portable": {
       "artifactName": "MikRailways.exe"
