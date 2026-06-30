@@ -3,7 +3,6 @@ const path = require('path');
 const https = require('https');
 
 const JSON_URLS = [
-  'https://cdn.jsdelivr.net/gh/Rainboow1908/Mik_railways@main/page/railway_data.json',
   'https://raw.githubusercontent.com/Rainboow1908/Mik_railways/main/page/railway_data.json',
 ];
 const UPDATE_URL = 'https://api.github.com/repos/Rainboow1908/Mik_railways/releases/latest';
