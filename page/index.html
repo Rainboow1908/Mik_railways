@@ -339,18 +339,8 @@ for (const [lineId, items] of Object.entries(lineLevels)) {
       fullPath.add(new THREE.QuadraticBezierCurve3(c1, corner, c2));
       fullPath.add(new THREE.LineCurve3(c2, pa));
     } else {
-      // 方向相同 → 小弯（坐标差>15格时偏折）
-      const dist = pp.distanceTo(pa);
-      if (dist > 15) {
-        const mid = pp.clone().add(pa).multiplyScalar(0.5);
-        const offset = mid.clone();
-        if (prev.direction === 'e,w') offset.z += Math.min(dist * 0.08, 20);
-        else offset.x += Math.min(dist * 0.08, 20);
-        fullPath.add(new THREE.LineCurve3(pp, offset));
-        fullPath.add(new THREE.LineCurve3(offset, pa));
-      } else {
-        fullPath.add(new THREE.LineCurve3(pp, pa));
-      }
+      // 方向相同 → 直线
+      fullPath.add(new THREE.LineCurve3(pp, pa));
     }
   }
 
