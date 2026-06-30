@@ -77,6 +77,22 @@
       ]
     },
     {
+      "stationId": "ST006",
+      "name": "城西总站",
+      "district": "主城西区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": -1,
+          "coordinate": {"x": -179, "y": 41, "z": 101},
+          "direction": "e,w",
+          "lineId": "L002",
+          "tracks": 2
+        }
+      ]
+    },
+    {
       "stationId": "ST004",
       "name": "望风港站",
       "district": "望风港区",
