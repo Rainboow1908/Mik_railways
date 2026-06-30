@@ -1,34 +1,37 @@
-# MCRMS-Minecraft Railway Manage System 0.2.0
+# Mik Railways
 
-Minecraft 轨道交通可视化项目，支持 3D 和 2D 两种地图模式。
+Minecraft 轨道交通可视化工具，支持 3D / 2D 双模式地图。
 
-## 功能
+## 快速开始
 
-- **3D 地图** — Three.js 渲染，自由旋转/缩放/平移，支持站点方框、管道线路、CSS 标签
-- **2D 地图** — Canvas 渲染，拖拽平移、滚轮缩放、坐标网格
-- **路线导航** — Dijkstra 最短路径，支持换乘和越野步行模式
-- **数据驱动** — 站点、线路、层级信息由 `railway_data.json` 统一管理
-
-## 文件结构
-
-```
-page/
-├── index.html           # 3D 地图主页面
-├── map2d.html           # 2D 地图页面
-├── railway_data.json    # 轨道交通数据
-├── 地图1.png ~ 地图4.png # 地板背景图
-└── README.md            # 数据格式说明
-```
-
-## 使用
+### 浏览器
 
 ```bash
 cd page
 python -m http.server 8080
+# 打开 http://localhost:8080
 ```
 
-浏览器打开 `http://localhost:8080`
+### 桌面应用
+
+```bash
+npm install
+npx electron .
+```
+
+启动后通过 **文件 → 打开 JSON** 选择数据文件。
 
 ## 数据格式
 
-详见 `page/README.md`
+站点和线路数据由 `railway_data.json` 定义，格式见 `page/README.md`。
+
+## 功能
+
+- 3D 地图 — Three.js 渲染，自由视角
+- 2D 地图 — Canvas 渲染，拖拽缩放
+- 路线导航 — Dijkstra 最短路径，换乘/越野
+- 桌面应用 — Electron 打包，离线查看 JSON
+
+## 技术栈
+
+Three.js / Canvas 2D / Electron / GitHub Pages
