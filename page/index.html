@@ -139,21 +139,30 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// ── 数据加载（主动请求，无竞态） ──────────────
+// ── 数据加载（页面直连，先渲染后初始化） ────
 let data;
+const jsonURL = window.railwayAPI?.jsonURL || 'railway_data.json';
+
+// 显示加载提示
+const loadingDiv = document.createElement('div');
+loadingDiv.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;font-size:18px;z-index:999;background:#1a1d23;';
+loadingDiv.textContent = '正在加载数据...';
+document.body.appendChild(loadingDiv);
+
+// 监听打开本地文件
+if (window.railwayAPI) window.railwayAPI.onOpenLocal(d => { data = d; loadingDiv.remove(); initApp(); });
+
 try {
-  if (window.railwayAPI) {
-    const result = await window.railwayAPI.fetchData();
-    if (!result.ok) throw new Error(result.error || '获取失败');
-    data = result.data;
-  } else {
-    const res = await fetch('railway_data.json');
-    data = await res.json();
-  }
+  const res = await fetch(jsonURL);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  data = await res.json();
 } catch(e) {
-  document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>数据加载失败</h2><p style="color:#888;">'+e.message+'</p><p>请通过 文件→打开JSON 菜单选择文件</p></div>';
+  loadingDiv.textContent = '数据加载失败，请使用 文件→打开本地JSON';
   throw e;
 }
+loadingDiv.remove();
+
+function initApp() {
 
 // 地面高度：取所有站点最低 y 坐标再往下偏移
 const allY = data.stations.flatMap(s => s.levels.map(l => l.coordinate.y));
@@ -778,6 +787,9 @@ navGo.addEventListener('click', () => {
   navResult.innerHTML = html;
   highlightPath(result, g);
 });
+
+} // end initApp
+initApp();
 </script>
 </body>
 </html>

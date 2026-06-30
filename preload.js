@@ -1,10 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('railwayAPI', {
-  fetchData: () => ipcRenderer.invoke('get-data'),
-  onData: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('load-data', handler);
-    return () => ipcRenderer.removeListener('load-data', handler);
-  }
+  jsonURL: 'https://raw.githubusercontent.com/Rainboow1908/Mik_railways/main/page/railway_data.json',
+  onOpenLocal: (cb) => ipcRenderer.on('load-data', (_, d) => cb(d)),
 });

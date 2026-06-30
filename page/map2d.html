@@ -68,15 +68,11 @@
 
 <script type="module">
 let data;
+const jsonURL = window.railwayAPI?.jsonURL || 'railway_data.json';
 try {
-  if (window.railwayAPI) {
-    const result = await window.railwayAPI.fetchData();
-    if (!result.ok) throw new Error(result.error || '获取失败');
-    data = result.data;
-  } else {
-    const res = await fetch('railway_data.json');
-    data = await res.json();
-  }
+  const res = await fetch(jsonURL);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  data = await res.json();
 } catch(e) {
   document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>数据加载失败</h2><p style="color:#888;">'+e.message+'</p></div>';
   throw e;
