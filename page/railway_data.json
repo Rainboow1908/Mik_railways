@@ -91,6 +91,22 @@
           "tracks": 2
         }
       ]
+    },
+    {
+      "stationId": "ST005",
+      "name": "望风古楼站",
+      "district": "红石音乐区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": 2,
+          "coordinate": {"x": -1459, "y": 88, "z": 654},
+          "direction": "e,w",
+          "lineId": "L001",
+          "tracks": 2
+        }
+      ]
     }
   ]
 }
