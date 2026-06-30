@@ -69,17 +69,16 @@
 <script type="module">
 let data;
 try {
-  data = await new Promise((resolve, reject) => {
-    if (window.railwayAPI) {
-      window.railwayAPI.onData(d => resolve(d));
-      window.railwayAPI.onError(msg => reject(new Error(msg)));
-      setTimeout(() => reject(new Error('等待JSON超时')), 8000);
-    } else {
-      fetch('railway_data.json').then(r => r.json()).then(resolve).catch(reject);
-    }
-  });
+  if (window.railwayAPI) {
+    const result = await window.railwayAPI.fetchData();
+    if (!result.ok) throw new Error(result.error || '获取失败');
+    data = result.data;
+  } else {
+    const res = await fetch('railway_data.json');
+    data = await res.json();
+  }
 } catch(e) {
-  document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>未加载数据</h2><p>请通过 文件→打开JSON 菜单选择 railway_data.json</p></div>';
+  document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>数据加载失败</h2><p style="color:#888;">'+e.message+'</p></div>';
   throw e;
 }
 let navResult2 = null;

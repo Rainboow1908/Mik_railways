@@ -1,32 +1,17 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
-const https = require('https');
 
-const JSON_URLS = [
-  'https://raw.githubusercontent.com/Rainboow1908/Mik_railways/main/page/railway_data.json',
-];
+const JSON_URL = 'https://raw.githubusercontent.com/Rainboow1908/Mik_railways/main/page/railway_data.json';
 const UPDATE_URL = 'https://api.github.com/repos/Rainboow1908/Mik_railways/releases/latest';
 const CURRENT_VERSION = '1.0.0';
 let mainWindow;
 
-function fetchJSON(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'MikRailways' } }, res => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch (e) { reject(new Error('解析失败')); }
-      });
-    }).on('error', () => reject());
-  });
-}
-
 async function tryFetchJSON() {
-  for (const url of JSON_URLS) {
-    try { return await fetchJSON(url); } catch {}
-  }
-  return null;
+  try {
+    const res = await fetch(JSON_URL, { headers: { 'User-Agent': 'MikRailways' }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return { ok: true, data: await res.json() };
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
 function createWindow() {
@@ -57,35 +42,27 @@ function createWindow() {
   ]);
   Menu.setApplicationMenu(menu);
 
-  // 窗口先显示，后台加载数据
+  // 更新检测
   mainWindow.webContents.on('did-finish-load', async () => {
-    const data = await tryFetchJSON();
-    if (data) {
-      mainWindow.webContents.send('load-data', data);
-    } else {
-      mainWindow.webContents.send('load-error', '网络获取失败，请使用 文件→打开本地JSON');
-    }
-
-    // 更新检测（静默，不阻塞）
-    https.get(UPDATE_URL, { headers: { 'User-Agent': 'MikRailways' } }, res => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => {
-        try {
-          const release = JSON.parse(body);
-          const latest = release.tag_name ? release.tag_name.replace('v', '') : '0.0.0';
-          if (latest !== CURRENT_VERSION) {
-            dialog.showMessageBox(mainWindow, {
-              type: 'info', title: '发现新版本',
-              message: `v${latest} 可用（当前 v${CURRENT_VERSION}）`,
-              buttons: ['前往', '取消']
-            }).then(r => { if (r.response === 0) require('electron').shell.openExternal(release.html_url); });
-          }
-        } catch {}
-      });
-    }).on('error', () => {});
+    try {
+      const res = await fetch(UPDATE_URL, { headers: { 'User-Agent': 'MikRailways' } });
+      if (res.ok) {
+        const release = await res.json();
+        const latest = release.tag_name ? release.tag_name.replace('v', '') : '0.0.0';
+        if (latest !== CURRENT_VERSION) {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info', title: '发现新版本',
+            message: `v${latest} 可用（当前 v${CURRENT_VERSION}）`,
+            buttons: ['前往', '取消']
+          }).then(r => { if (r.response === 0) require('electron').shell.openExternal(release.html_url); });
+        }
+      }
+    } catch {}
   });
 }
+
+// 渲染进程主动请求数据
+ipcMain.handle('get-data', async () => await tryFetchJSON());
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

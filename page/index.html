@@ -139,21 +139,19 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-// ── 数据加载（从主进程获取） ──────────────────
+// ── 数据加载（主动请求，无竞态） ──────────────
 let data;
 try {
-  data = await new Promise((resolve, reject) => {
-    if (window.railwayAPI) {
-      window.railwayAPI.onData(d => resolve(d));
-      window.railwayAPI.onError(msg => reject(new Error(msg)));
-      setTimeout(() => reject(new Error('等待JSON超时，请用 文件→打开JSON 选择文件')), 8000);
-    } else {
-      // fallback: 浏览器直接打开
-      fetch('railway_data.json').then(r => r.json()).then(resolve).catch(reject);
-    }
-  });
+  if (window.railwayAPI) {
+    const result = await window.railwayAPI.fetchData();
+    if (!result.ok) throw new Error(result.error || '获取失败');
+    data = result.data;
+  } else {
+    const res = await fetch('railway_data.json');
+    data = await res.json();
+  }
 } catch(e) {
-  document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>未加载数据</h2><p>请通过 文件→打开JSON 菜单选择 railway_data.json</p><p style="color:#888;">' + e.message + '</p></div>';
+  document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>数据加载失败</h2><p style="color:#888;">'+e.message+'</p><p>请通过 文件→打开JSON 菜单选择文件</p></div>';
   throw e;
 }
 

@@ -1,10 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('railwayAPI', {
+  fetchData: () => ipcRenderer.invoke('get-data'),
   onData: (callback) => {
-    ipcRenderer.on('load-data', (event, data) => callback(data));
-  },
-  onError: (callback) => {
-    ipcRenderer.on('load-error', (event, msg) => callback(msg));
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('load-data', handler);
+    return () => ipcRenderer.removeListener('load-data', handler);
   }
 });
