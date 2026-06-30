@@ -75,6 +75,22 @@
           "tracks": 2
         }
       ]
+    },
+    {
+      "stationId": "ST004",
+      "name": "望风港站",
+      "district": "望风港区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": 1,
+          "coordinate": {"x": -874, "y": 136, "z": 654},
+          "direction": "e,w",
+          "lineId": "L001",
+          "tracks": 2
+        }
+      ]
     }
   ]
 }
