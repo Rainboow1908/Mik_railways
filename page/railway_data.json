@@ -123,22 +123,6 @@
           "tracks": 2
         }
       ]
-    },
-    {
-      "stationId": "ST007",
-      "name": "测试站",
-      "district": "测试区",
-      "openingDate": {"y": 2025, "m": 12, "d": 29},
-      "platformCount": 2,
-      "levels": [
-        {
-          "level": 1,
-          "coordinate": {"x": 289, "y": 109, "z": 373},
-          "direction": "s,n",
-          "lineId": "L001",
-          "tracks": 2
-        }
-      ]
     }
   ]
 }
