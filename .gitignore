@@ -5,3 +5,4 @@ dist/
 *.exe
 package-lock.json
 PROJECT.md
+.npmrc
