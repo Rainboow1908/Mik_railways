@@ -1,6 +1,6 @@
 {
   "name": "mik-railway",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Minecraft 轨道交通可视化",
   "author": "Rainboow1908",
   "main": "main.js",
