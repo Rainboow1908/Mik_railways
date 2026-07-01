@@ -592,13 +592,13 @@ function drawNavHighlight() {
     for (let i = 1; i < pts.length; i++) {
       if (pts[i]._arc === 'corner') {
         addSeg('line', pts[i-1], pts[i]);
-        addSeg('bezier', pts[i], pts[i+1], pts[i]);
+        addSeg('bezier', pts[i-1], pts[i+1], pts[i]);
         i++;
       } else {
         addSeg('line', pts[i-1], pts[i]);
       }
     }
-    const speed = seg.type === 'transfer' ? 0.05 : 0.15;
+    const speed = seg.type === 'transfer' ? 10 / (totalL || 1) : 50 / (totalL || 1);
     const count = Math.max(3, Math.floor(totalL / 100));
     for (let a = 0; a < count; a++) {
       const prog = ((now * speed) % 1 + a/count) % 1;

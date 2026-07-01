@@ -791,7 +791,8 @@ function highlightPath(result, graph) {
     // 动画小球
     const totalLen = curve.getLength();
     const count = Math.max(4, Math.floor(totalLen / 100));
-    const speed = seg.type === 'transfer' ? 0.05 : 0.15;
+    const baseSpeed = seg.type === 'transfer' ? 10 : 50;
+    const speed = baseSpeed / (totalLen || 1);
     for (let a = 0; a < count; a++) {
       const ball = new THREE.Mesh(sphereGeo, sphereMat.clone());
       ball.position.copy(curve.getPointAt(0));
