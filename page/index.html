@@ -790,7 +790,8 @@ function highlightPath(result, graph) {
 
     // 动画小球
     const totalLen = curve.getLength();
-    const count = 6;
+    const spacing = seg.type === 'transfer' ? 50 : 150;
+    const count = Math.max(3, Math.floor(totalLen / spacing));
     const baseSpeed = seg.type === 'transfer' ? 10 : 50;
     const speed = baseSpeed / (totalLen || 1);
     for (let a = 0; a < count; a++) {
