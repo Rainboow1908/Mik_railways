@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -77,7 +77,7 @@ try {
   document.body.innerHTML = '<div style="color:#fff;text-align:center;padding:40px;font-family:sans-serif;"><h2>数据加载失败</h2><p style="color:#888;">'+e.message+'</p></div>';
   throw e;
 }
-let navResult2 = null;
+let navResult2 = null; let routeState2 = null;
 
 // 加载地板图片
 const bgImgs = [];
@@ -523,16 +523,58 @@ document.getElementById('nav-go').addEventListener('click', () => {
   const fn = document.getElementById('nav-from').value.trim();
   const tn = document.getElementById('nav-to').value.trim();
   const r = document.getElementById('nav-result');
-  if (!fn || !tn) { r.innerHTML = '<span style="color:#f88;">请输入出发站和到达站</span>'; navResult2 = null; return; }
+  if (!fn || !tn) { r.innerHTML = '<span style="color:#f88;">请输入出发站和到达站</span>'; navResult2 = null; if (routeState2 && routeState2.timer) { clearInterval(routeState2.timer); routeState2 = null; } return; }
   const fs = data.stations.find(s => s.name === fn);
   const ts = data.stations.find(s => s.name === tn);
-  if (!fs || !ts) { r.innerHTML = `<span style="color:#f88;">未找到</span>`; navResult2 = null; return; }
-  if (fs === ts) { r.innerHTML = '<span style="color:#f88;">相同站点</span>'; navResult2 = null; return; }
+  if (!fs || !ts) { r.innerHTML = `<span style="color:#f88;">未找到</span>`; navResult2 = null; if (routeState2 && routeState2.timer) { clearInterval(routeState2.timer); routeState2 = null; } return; }
+  if (fs === ts) { r.innerHTML = '<span style="color:#f88;">相同站点</span>'; navResult2 = null; if (routeState2 && routeState2.timer) { clearInterval(routeState2.timer); routeState2 = null; } return; }
   const g = buildGraph2();
   const sks = fs.levels.map(lv => `${fs.stationId}|${lv.level}|${lv.lineId}`);
   const result = dijkstra2(g, sks, ts.stationId, document.getElementById('nav-cross').checked);
-  if (!result) { r.innerHTML = '<span style="color:#f88;">无可行路线</span>'; navResult2 = null; return; }
+  if (!result) { r.innerHTML = '<span style="color:#f88;">无可行路线</span>'; navResult2 = null; if (routeState2 && routeState2.timer) { clearInterval(routeState2.timer); routeState2 = null; } return; }
   navResult2 = result;
+
+  // Build routeState2 for full-path balls
+  if (routeState2 && routeState2.timer) { clearInterval(routeState2.timer); }
+  const allSegs = [];
+  const segInfos = [];
+  const segBounds = [];
+  let totalLen = 0;
+  for (const seg of result.segs) {
+    const pts = seg.pathPts;
+    if (!pts || pts.length < 2) continue;
+    const segs = [];
+    let segL = 0;
+    const addSeg = (type, p0, p1, p2) => {
+      let len;
+      if (type === 'bezier') {
+        len = 0; let prev = p0;
+        for (let s = 1; s <= 20; s++) {
+          const t2 = s / 20, u = 1 - t2;
+          const cp = { x: u*u*p0.x + 2*u*t2*p2.x + t2*t2*p1.x, z: u*u*p0.z + 2*u*t2*p2.z + t2*t2*p1.z };
+          len += Math.hypot(cp.x - prev.x, cp.z - prev.z); prev = cp;
+        }
+      } else {
+        len = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+      }
+      segL += len; allSegs.push({ type, p0, p1, p2, len });
+      segs.push({ type, p0, p1, p2, len });
+    };
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i]._arc === 'corner') { addSeg('bezier', pts[i-1], pts[i+1], pts[i]); i++; }
+      else { addSeg('line', pts[i-1], pts[i]); }
+    }
+    segBounds.push({ startLen: totalLen, endLen: totalLen + segL, type: seg.type });
+    segInfos.push({ pts, type: seg.type });
+    totalLen += segL;
+  }
+  routeState2 = { allSegs, segBounds, segInfos, totalLen, balls: [] };
+  function spawn2() {
+    if (!routeState2) return;
+    routeState2.balls.push({ pos: 0 });
+  }
+  spawn2();
+  routeState2.timer = setInterval(spawn2, 2000);
   const detail = document.getElementById('nav-detail').checked;
   let h = `<div style="font-weight:600;margin-bottom:8px;">🚩 ${fs.name} → ${ts.name} <span style="color:#4fc3f7;">${result.dist}格</span></div>`;
   let n = 1, tr = 0;
@@ -551,58 +593,42 @@ document.getElementById('nav-go').addEventListener('click', () => {
 
 // 导航高亮绘制（在render中调用）
 function drawNavHighlight() {
-  if (!navResult2) return;
+  if (!routeState2) return;
   const now = performance.now() / 1000;
-  for (const seg of navResult2.segs) {
-    const pts = seg.pathPts;
-    if (!pts || pts.length < 2) continue;
-    const color = seg.type === 'transfer' ? '#ffaa00' : seg.type === 'walk' ? '#ff7043' : '#ffeb3b';
-    // 管道线（适配弯道）
+
+  // Draw highlight tubes
+  for (const si of routeState2.segInfos) {
+    const color = si.type === 'transfer' ? '#ffaa00' : si.type === 'walk' ? '#ff7043' : '#ffeb3b';
     ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.globalAlpha = 0.5;
     ctx.beginPath();
-    const s0 = w2s(pts[0].x, pts[0].z); ctx.moveTo(s0.x, s0.y);
-    for (let i = 1; i < pts.length; i++) {
-      if (pts[i]._arc === 'corner') {
-        const s1 = w2s(pts[i-1].x, pts[i-1].z); ctx.lineTo(s1.x, s1.y);
-        const sc = w2s(pts[i].x, pts[i].z);
-        const s3 = w2s(pts[i+1].x, pts[i+1].z); ctx.quadraticCurveTo(sc.x, sc.y, s3.x, s3.y);
+    const s0 = w2s(si.pts[0].x, si.pts[0].z); ctx.moveTo(s0.x, s0.y);
+    for (let i = 1; i < si.pts.length; i++) {
+      if (si.pts[i]._arc === 'corner') {
+        const s1 = w2s(si.pts[i-1].x, si.pts[i-1].z); ctx.lineTo(s1.x, s1.y);
+        const sc = w2s(si.pts[i].x, si.pts[i].z);
+        const s3 = w2s(si.pts[i+1].x, si.pts[i+1].z); ctx.quadraticCurveTo(sc.x, sc.y, s3.x, s3.y);
         i++;
       } else {
-        const s = w2s(pts[i].x, pts[i].z); ctx.lineTo(s.x, s.y);
+        const s = w2s(si.pts[i].x, si.pts[i].z); ctx.lineTo(s.x, s.y);
       }
     }
     ctx.stroke(); ctx.restore();
-    // 动画小球
-    const segs = []; // {type:'line'|'bezier', p0,p1,p2?, len}
-    let totalL = 0;
-    const addSeg = (type, p0, p1, p2) => {
-      let len;
-      if (type === 'bezier') {
-        len = 0; let prev = p0;
-        for (let s = 1; s <= 20; s++) {
-          const t2 = s / 20, u = 1 - t2;
-          const cp = { x: u*u*p0.x + 2*u*t2*p2.x + t2*t2*p1.x, z: u*u*p0.z + 2*u*t2*p2.z + t2*t2*p1.z };
-          len += Math.hypot(cp.x - prev.x, cp.z - prev.z); prev = cp;
-        }
-      } else {
-        len = Math.hypot(p1.x - p0.x, p1.z - p0.z);
-      }
-      totalL += len; segs.push({ type, p0, p1, p2, len });
-    };
-    for (let i = 1; i < pts.length; i++) {
-      if (pts[i]._arc === 'corner') {
-        addSeg('bezier', pts[i-1], pts[i+1], pts[i]);
-        i++;
-      } else {
-        addSeg('line', pts[i-1], pts[i]);
-      }
+  }
+
+  // Update and draw balls
+  const dt = 0.016;
+  for (let i = routeState2.balls.length - 1; i >= 0; i--) {
+    const b = routeState2.balls[i];
+    let speed = 80;
+    for (const sb of routeState2.segBounds) {
+      if (b.pos >= sb.startLen && b.pos < sb.endLen) { speed = sb.type === 'transfer' ? 20 : 80; break; }
     }
-    const speed = seg.type === 'transfer' ? 10 / (totalL || 1) : 50 / (totalL || 1);
-    const spacing = seg.type === 'transfer' ? 50 : 150;
-    const count = Math.max(seg.type === 'transfer' ? 3 : 1, Math.round(totalL / spacing));
-    for (let a = 0; a < count; a++) {
-      const prog = ((now * speed) % 1 + a/count) % 1;
-      let target = prog * totalL, acc = 0, bx, bz;
+    b.pos += speed * dt;
+    if (b.pos >= routeState2.totalLen) {
+      routeState2.balls.splice(i, 1);
+    } else {
+      const segs = routeState2.allSegs;
+      let target = b.pos, acc = 0, bx, bz;
       for (const sg of segs) {
         if (acc + sg.len > target) {
           const t2 = (target - acc) / sg.len;
@@ -624,6 +650,7 @@ function drawNavHighlight() {
     }
   }
 }
+
 </script>
 </body>
 </html>

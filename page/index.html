@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -571,17 +571,29 @@ function animate() {
   }
 
   // 导航小球动画
-  const t = performance.now() / 1000;
-  for (const b of navBalls) {
-    const prog = ((t * b.speed) % 1 + b.offset) % 1;
-    b.mesh.position.copy(b.curve.getPointAt(prog));
+  if (routeState) {
+    const dt = 0.016;
+    for (let i = routeState.balls.length - 1; i >= 0; i--) {
+      const b = routeState.balls[i];
+      let speed = 80;
+      for (const sb of routeState.segBounds) {
+        if (b.pos >= sb.startLen && b.pos < sb.endLen) { speed = sb.type === 'transfer' ? 20 : 80; break; }
+      }
+      b.pos += speed * dt;
+      if (b.pos >= routeState.totalLen) {
+        highlightGroup.remove(b.mesh);
+        routeState.balls.splice(i, 1);
+      } else {
+        b.mesh.position.copy(routeState.fullCurve.getPointAt(b.pos / routeState.totalLen));
+      }
+    }
   }
 
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
 }
 // 导航小球动画数据
-let navBalls = [];
+let routeState = null;
 
 animate();
 
@@ -768,10 +780,15 @@ const navDetail = document.getElementById('nav-detail');
 
 function highlightPath(result, graph) {
   highlightGroup.clear();
-  navBalls = [];
+  if (routeState && routeState.timer) { clearInterval(routeState.timer); routeState = null; }
   if (!result) return;
+
   const sphereGeo = new THREE.SphereGeometry(5, 12, 12);
   const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const fullCurve = new THREE.CurvePath();
+  const segBounds = [];
+  let totalLen = 0;
+
   for (const seg of result.segments) {
     const na = graph.nodes[seg.from], nb = graph.nodes[seg.to];
     if (!na || !nb) continue;
@@ -788,19 +805,22 @@ function highlightPath(result, graph) {
     const hGeo = new THREE.TubeGeometry(curve, 64, 4, 8, false);
     highlightGroup.add(new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthTest: true })));
 
-    // 动画小球
-    const totalLen = curve.getLength();
-    const spacing = seg.type === 'transfer' ? 50 : 150;
-    const count = Math.max(seg.type === 'transfer' ? 3 : 1, Math.round(totalLen / spacing));
-    const baseSpeed = seg.type === 'transfer' ? 10 : 50;
-    const speed = baseSpeed / (totalLen || 1);
-    for (let a = 0; a < count; a++) {
-      const ball = new THREE.Mesh(sphereGeo, sphereMat.clone());
-      ball.position.copy(curve.getPointAt(0));
-      highlightGroup.add(ball);
-      navBalls.push({ mesh: ball, curve, offset: a / count, speed });
-    }
+    for (const c of curve.curves) fullCurve.add(c);
+    const segLen = curve.getLength();
+    segBounds.push({ startLen: totalLen, endLen: totalLen + segLen, type: seg.type });
+    totalLen += segLen;
   }
+
+  routeState = { fullCurve, totalLen, segBounds, sphereGeo, sphereMat, balls: [] };
+  function spawn() {
+    if (!routeState) return;
+    const ball = new THREE.Mesh(routeState.sphereGeo, routeState.sphereMat.clone());
+    ball.position.copy(routeState.fullCurve.getPointAt(0));
+    highlightGroup.add(ball);
+    routeState.balls.push({ mesh: ball, pos: 0 });
+  }
+  spawn();
+  routeState.timer = setInterval(spawn, 2000);
 }
 
 navGo.addEventListener('click', () => {
