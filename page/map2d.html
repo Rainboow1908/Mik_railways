@@ -599,7 +599,7 @@ function drawNavHighlight() {
     }
     const speed = seg.type === 'transfer' ? 10 / (totalL || 1) : 50 / (totalL || 1);
     const spacing = seg.type === 'transfer' ? 50 : 150;
-    const count = Math.max(3, Math.floor(totalL / spacing));
+    const count = Math.max(3, Math.round(totalL / spacing));
     for (let a = 0; a < count; a++) {
       const prog = ((now * speed) % 1 + a/count) % 1;
       let target = prog * totalL, acc = 0, bx, bz;
