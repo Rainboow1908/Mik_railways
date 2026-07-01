@@ -260,7 +260,7 @@ function render(){
     }
     allPts2.sort((a, b) => a.x - b.x);
     // 逐段绘制
-    const bendR2 = 50;
+    const bendR2 = 80;
     ctx.save();
     ctx.strokeStyle = line.color;
     ctx.lineWidth = line.type === 'Planned' ? 2.5 : 4;
@@ -457,7 +457,7 @@ function buildGraph2() {
           const npW = { x: next.x, z: next.z };
           const d1 = { x: cpW.x - ppW.x, z: cpW.z - ppW.z }, l1 = Math.sqrt(d1.x*d1.x + d1.z*d1.z) || 1;
           const d2 = { x: cpW.x - npW.x, z: cpW.z - npW.z }, l2 = Math.sqrt(d2.x*d2.x + d2.z*d2.z) || 1;
-          const r = Math.min(50, l1 * 0.45, l2 * 0.45);
+          const r = Math.min(80, l1 * 0.45, l2 * 0.45);
           pathPts.push({ x: cpW.x - d1.x / l1 * r, z: cpW.z - d1.z / l1 * r, _arc: 'ctrl' });
           pathPts.push({ x: v.x, z: v.z, _arc: 'corner' });
           pathPts.push({ x: cpW.x - d2.x / l2 * r, z: cpW.z - d2.z / l2 * r, _arc: 'ctrl' });
@@ -598,9 +598,10 @@ function drawNavHighlight() {
         addSeg('line', pts[i-1], pts[i]);
       }
     }
+    const speed = seg.type === 'transfer' ? 0.05 : 0.15;
     const count = Math.max(3, Math.floor(totalL / 100));
     for (let a = 0; a < count; a++) {
-      const prog = ((now * 0.15) % 1 + a/count) % 1;
+      const prog = ((now * speed) % 1 + a/count) % 1;
       let target = prog * totalL, acc = 0, bx, bz;
       for (const sg of segs) {
         if (acc + sg.len > target) {

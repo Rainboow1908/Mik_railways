@@ -327,7 +327,7 @@ for (const [lineId, items] of Object.entries(lineLevels)) {
   }
   allPts.sort((a, b) => a.x - b.x);
 
-  const bendR = 50; // 弧半径
+  const bendR = 80; // 弧半径
 
   // 构建单个 CurvePath，处理弧线段时把弧线区域作平滑处理
   const fullPath = new THREE.CurvePath();
@@ -573,7 +573,7 @@ function animate() {
   // 导航小球动画
   const t = performance.now() / 1000;
   for (const b of navBalls) {
-    const prog = ((t * 0.15) % 1 + b.offset) % 1;
+    const prog = ((t * b.speed) % 1 + b.offset) % 1;
     b.mesh.position.copy(b.curve.getPointAt(prog));
   }
 
@@ -683,8 +683,8 @@ function buildGraph() {
           const next = allPts[vk + 1];
           const nn = toVec3({ x: next.x, y: next.y, z: next.z });
           const prevP = pathPts[pathPts.length - 1];
-          const d1 = vv.clone().sub(prevP); d1.setLength(Math.min(50, d1.length() * 0.45));
-          const d2 = vv.clone().sub(nn); d2.setLength(Math.min(50, d2.length() * 0.45));
+          const d1 = vv.clone().sub(prevP); d1.setLength(Math.min(80, d1.length() * 0.45));
+          const d2 = vv.clone().sub(nn); d2.setLength(Math.min(80, d2.length() * 0.45));
           const c1v = vv.clone().sub(d1); c1v._arc = 'ctrl';
           const corv = vv.clone(); corv._arc = 'corner';
           const c2v = vv.clone().sub(d2); c2v._arc = 'ctrl';
@@ -791,11 +791,12 @@ function highlightPath(result, graph) {
     // 动画小球
     const totalLen = curve.getLength();
     const count = Math.max(4, Math.floor(totalLen / 100));
+    const speed = seg.type === 'transfer' ? 0.05 : 0.15;
     for (let a = 0; a < count; a++) {
       const ball = new THREE.Mesh(sphereGeo, sphereMat.clone());
       ball.position.copy(curve.getPointAt(0));
       highlightGroup.add(ball);
-      navBalls.push({ mesh: ball, curve, offset: a / count });
+      navBalls.push({ mesh: ball, curve, offset: a / count, speed });
     }
   }
 }
