@@ -569,11 +569,14 @@ document.getElementById('nav-go').addEventListener('click', () => {
     totalLen += segL;
   }
   routeState2 = { allSegs, segBounds, segInfos, totalLen, balls: [] };
+  // Fill route with evenly spaced balls
+  let pos = 0;
+  while (pos < totalLen) { routeState2.balls.push({ pos }); pos += 150; }
+  // Keep spawning from start
   function spawn2() {
     if (!routeState2) return;
     routeState2.balls.push({ pos: 0 });
   }
-  spawn2();
   routeState2.timer = setInterval(spawn2, 2000);
   const detail = document.getElementById('nav-detail').checked;
   let h = `<div style="font-weight:600;margin-bottom:8px;">🚩 ${fs.name} → ${ts.name} <span style="color:#4fc3f7;">${result.dist}格</span></div>`;

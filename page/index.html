@@ -812,6 +812,16 @@ function highlightPath(result, graph) {
   }
 
   routeState = { fullCurve, totalLen, segBounds, sphereGeo, sphereMat, balls: [] };
+  // Fill route with evenly spaced balls
+  let pos = 0;
+  while (pos < totalLen) {
+    const ball = new THREE.Mesh(sphereGeo, sphereMat.clone());
+    ball.position.copy(fullCurve.getPointAt(pos / totalLen));
+    highlightGroup.add(ball);
+    routeState.balls.push({ mesh: ball, pos });
+    pos += 150;
+  }
+  // Keep spawning from start
   function spawn() {
     if (!routeState) return;
     const ball = new THREE.Mesh(routeState.sphereGeo, routeState.sphereMat.clone());
@@ -819,7 +829,6 @@ function highlightPath(result, graph) {
     highlightGroup.add(ball);
     routeState.balls.push({ mesh: ball, pos: 0 });
   }
-  spawn();
   routeState.timer = setInterval(spawn, 2000);
 }
 
