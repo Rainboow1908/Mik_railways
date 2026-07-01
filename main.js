@@ -47,7 +47,7 @@ function createWindow() {
           }).then(r => { if (r.response === 0) require('electron').shell.openExternal(release.html_url); });
         }
       }
-    } catch {}
+    } catch (e) { console.warn('Update check failed:', e.message); }
   });
 }
 
