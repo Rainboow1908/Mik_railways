@@ -12,7 +12,9 @@
       "color": "#4CAF50",
       "type": "Metro",
       "via": [
-        {"x": -550, "y": 120, "z": 600, "curve": false}
+        {"x": -1008, "y": 88, "z": 654, "curve": false},
+        {"x": -971, "y": 100, "z": 654, "curve": false},
+        {"x": -933, "y": 135, "z": 654, "curve": false}
       ]
     },
     {
@@ -22,7 +24,7 @@
       "color": "#CE93D8",
       "type": "Metro",
       "via": [
-        {"x": -38, "y": 41, "z": 530, "curve": true}
+        {"x": 103, "y": 41, "z": 114, "curve": true}
       ]
     }
   ],
