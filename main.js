@@ -1,9 +1,27 @@
 const { app, BrowserWindow, Menu, dialog } = require('electron');
 const path = require('path');
+const https = require('https');
 
 const UPDATE_URL = 'https://api.github.com/repos/Rainboow1908/Mik_railways/releases/latest';
-const CURRENT_VERSION = '1.2.1';
+const CURRENT_VERSION = '1.2.2';
 let mainWindow;
+
+function checkUpdate() {
+  return new Promise((resolve) => {
+    const req = https.get(UPDATE_URL, { headers: { 'User-Agent': 'MikRailways' }, rejectUnauthorized: false }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(body);
+          resolve(release.tag_name ? release.tag_name.replace('v', '') : null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(10000, () => { req.destroy(); resolve(null); });
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -34,20 +52,16 @@ function createWindow() {
   Menu.setApplicationMenu(menu);
 
   mainWindow.webContents.on('did-finish-load', async () => {
-    try {
-      const res = await fetch(UPDATE_URL, { headers: { 'User-Agent': 'MikRailways' } });
-      if (res.ok) {
-        const release = await res.json();
-        const latest = release.tag_name ? release.tag_name.replace('v', '') : '0.0.0';
-        if (latest !== CURRENT_VERSION) {
-          dialog.showMessageBox(mainWindow, {
-            type: 'info', title: '发现新版本',
-            message: `v${latest} 可用（当前 v${CURRENT_VERSION}）`,
-            buttons: ['前往', '取消']
-          }).then(r => { if (r.response === 0) require('electron').shell.openExternal(release.html_url); });
-        }
-      }
-    } catch (e) { console.warn('Update check failed:', e.message); }
+    const latest = await checkUpdate();
+    if (latest && latest !== CURRENT_VERSION) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info', title: 'Update Available',
+        message: `v${latest} available (current v${CURRENT_VERSION})`,
+        buttons: ['Download', 'Cancel']
+      }).then(r => {
+        if (r.response === 0) require('electron').shell.openExternal('https://github.com/Rainboow1908/Mik_railways/releases/latest');
+      });
+    }
   });
 }
 
