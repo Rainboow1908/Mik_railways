@@ -685,9 +685,10 @@ function buildGraph() {
           const prevP = pathPts[pathPts.length - 1];
           const d1 = vv.clone().sub(prevP); d1.setLength(Math.min(50, d1.length() * 0.45));
           const d2 = vv.clone().sub(nn); d2.setLength(Math.min(50, d2.length() * 0.45));
-          pathPts.push(vv.clone().sub(d1));
-          pathPts.push(vv.clone());
-          pathPts.push(vv.clone().sub(d2));
+          const c1v = vv.clone().sub(d1); c1v._arc = 'ctrl';
+          const corv = vv.clone(); corv._arc = 'corner';
+          const c2v = vv.clone().sub(d2); c2v._arc = 'ctrl';
+          pathPts.push(c1v, corv, c2v);
         } else {
           pathPts.push(toVec3({ x: v.x, y: v.y, z: v.z }));
         }
@@ -777,11 +778,11 @@ function highlightPath(result, graph) {
     const pts = seg.pathPts && seg.pathPts.length >= 2 ? seg.pathPts : [toVec3(na.levelObj.coordinate), toVec3(nb.levelObj.coordinate)];
     const curve = new THREE.CurvePath();
     for (let p = 1; p < pts.length; p++) {
-      if (p === 2 && pts.length === 5) {
-        curve.add(new THREE.QuadraticBezierCurve3(pts[1].clone(), pts[2].clone(), pts[3].clone()));
-        p = 3; continue;
+      if (pts[p]._arc === 'corner') {
+        curve.add(new THREE.QuadraticBezierCurve3(pts[p - 1].clone(), pts[p].clone(), pts[p + 1].clone()));
+        p++; continue;
       }
-      curve.add(new THREE.LineCurve3(pts[p-1].clone(), pts[p].clone()));
+      curve.add(new THREE.LineCurve3(pts[p - 1].clone(), pts[p].clone()));
     }
     const color = seg.type === 'transfer' ? '#ffaa00' : seg.type === 'walk' ? '#ff7043' : '#ffeb3b';
     const hGeo = new THREE.TubeGeometry(curve, 64, 4, 8, false);

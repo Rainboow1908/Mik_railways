@@ -458,9 +458,9 @@ function buildGraph2() {
           const d1 = { x: cpW.x - ppW.x, z: cpW.z - ppW.z }, l1 = Math.sqrt(d1.x*d1.x + d1.z*d1.z) || 1;
           const d2 = { x: cpW.x - npW.x, z: cpW.z - npW.z }, l2 = Math.sqrt(d2.x*d2.x + d2.z*d2.z) || 1;
           const r = Math.min(50, l1 * 0.45, l2 * 0.45);
-          pathPts.push({ x: cpW.x - d1.x / l1 * r, z: cpW.z - d1.z / l1 * r });
-          pathPts.push({ x: v.x, z: v.z });
-          pathPts.push({ x: cpW.x - d2.x / l2 * r, z: cpW.z - d2.z / l2 * r });
+          pathPts.push({ x: cpW.x - d1.x / l1 * r, z: cpW.z - d1.z / l1 * r, _arc: 'ctrl' });
+          pathPts.push({ x: v.x, z: v.z, _arc: 'corner' });
+          pathPts.push({ x: cpW.x - d2.x / l2 * r, z: cpW.z - d2.z / l2 * r, _arc: 'ctrl' });
         } else {
           pathPts.push({ x: v.x, z: v.z });
         }
@@ -561,42 +561,41 @@ function drawNavHighlight() {
     ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.globalAlpha = 0.5;
     ctx.beginPath();
     const s0 = w2s(pts[0].x, pts[0].z); ctx.moveTo(s0.x, s0.y);
-    if (pts.length === 5) {
-      // 弯道路径：直线→弧线→直线
-      const s1 = w2s(pts[1].x, pts[1].z); ctx.lineTo(s1.x, s1.y);
-      const sc = w2s(pts[2].x, pts[2].z);
-      const s3 = w2s(pts[3].x, pts[3].z); ctx.quadraticCurveTo(sc.x, sc.y, s3.x, s3.y);
-      const s4 = w2s(pts[4].x, pts[4].z); ctx.lineTo(s4.x, s4.y);
-    } else {
-      for (let i = 1; i < pts.length; i++) { const s = w2s(pts[i].x, pts[i].z); ctx.lineTo(s.x, s.y); }
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i]._arc === 'corner') {
+        const s1 = w2s(pts[i-1].x, pts[i-1].z); ctx.lineTo(s1.x, s1.y);
+        const sc = w2s(pts[i].x, pts[i].z);
+        const s3 = w2s(pts[i+1].x, pts[i+1].z); ctx.quadraticCurveTo(sc.x, sc.y, s3.x, s3.y);
+        i++;
+      } else {
+        const s = w2s(pts[i].x, pts[i].z); ctx.lineTo(s.x, s.y);
+      }
     }
     ctx.stroke(); ctx.restore();
     // 动画小球
     const segs = []; // {type:'line'|'bezier', p0,p1,p2?, len}
     let totalL = 0;
-    if (pts.length === 5) {
-      // 弯道：段0直线(pt0→pt1)，段1贝塞尔(pt1→pt3，控制点pt2)，段2直线(pt3→pt4)
-      const addSeg = (type, p0, p1, p2) => {
-        let len;
-        if (type === 'bezier') {
-          len = 0; let prev = p0;
-          for (let s = 1; s <= 20; s++) {
-            const t2 = s / 20, u = 1 - t2;
-            const cp = { x: u*u*p0.x + 2*u*t2*p2.x + t2*t2*p1.x, z: u*u*p0.z + 2*u*t2*p2.z + t2*t2*p1.z };
-            len += Math.hypot(cp.x - prev.x, cp.z - prev.z); prev = cp;
-          }
-        } else {
-          len = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+    const addSeg = (type, p0, p1, p2) => {
+      let len;
+      if (type === 'bezier') {
+        len = 0; let prev = p0;
+        for (let s = 1; s <= 20; s++) {
+          const t2 = s / 20, u = 1 - t2;
+          const cp = { x: u*u*p0.x + 2*u*t2*p2.x + t2*t2*p1.x, z: u*u*p0.z + 2*u*t2*p2.z + t2*t2*p1.z };
+          len += Math.hypot(cp.x - prev.x, cp.z - prev.z); prev = cp;
         }
-        totalL += len; segs.push({ type, p0, p1, p2, len });
-      };
-      addSeg('line', pts[0], pts[1]);
-      addSeg('bezier', pts[1], pts[3], pts[2]);
-      addSeg('line', pts[3], pts[4]);
-    } else {
-      for (let i = 1; i < pts.length; i++) {
-        const len = Math.hypot(pts[i].x - pts[i-1].x, pts[i].z - pts[i-1].z);
-        totalL += len; segs.push({ type: 'line', p0: pts[i-1], p1: pts[i], len });
+      } else {
+        len = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+      }
+      totalL += len; segs.push({ type, p0, p1, p2, len });
+    };
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i]._arc === 'corner') {
+        addSeg('line', pts[i-1], pts[i]);
+        addSeg('bezier', pts[i], pts[i+1], pts[i]);
+        i++;
+      } else {
+        addSeg('line', pts[i-1], pts[i]);
       }
     }
     const count = Math.max(3, Math.floor(totalL / 100));
