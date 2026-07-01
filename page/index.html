@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>轨道交通地图</title>
+<style>
+  :root {
+    --bg: #1a1d23;
+    --panel-bg: rgba(26, 29, 35, 0.92);
+    --text: #e0e0e0;
+    --text-dim: #999;
+    --accent: #4fc3f7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: "PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif; }
+  #canvas-container { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* 顶部信息栏 */
+  #top-bar {
+    position: fixed; top: 16px; left: 16px; right: 16px; z-index: 10;
+    display: flex; gap: 12px; align-items: center; pointer-events: none;
+  }
+  #top-bar > * { pointer-events: auto; }
+  #title-card {
+    background: var(--panel-bg); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 12px 20px; color: var(--text);
+  }
+  #title-card h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 6px; }
+
+  /* 图例 */
+  #legend {
+    position: fixed; bottom: 24px; left: 16px; z-index: 10;
+    background: var(--panel-bg); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 14px 18px; color: var(--text); min-width: 180px;
+  }
+  #legend h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; font-size: 13px; }
+  .legend-item:last-child { margin-bottom: 0; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-line { width: 20px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+  .legend-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.1); color: var(--text-dim); margin-left: auto;
+  }
+
+  /* 操作提示 */
+  #hint {
+    position: fixed; bottom: 24px; right: 24px; z-index: 10;
+    background: var(--panel-bg); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 10px 16px; color: var(--text-dim); font-size: 12px;
+    pointer-events: none; user-select: none;
+  }
+  #hint span { color: var(--accent); }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed; z-index: 20; pointer-events: none; opacity: 0;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+    padding: 12px 16px; color: #fff; font-size: 13px; line-height: 1.6;
+    transform: translate(-50%, -120%); transition: opacity 0.15s;
+    white-space: nowrap; max-width: 280px;
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .tt-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  #tooltip .tt-line { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 4px; color: #fff; }
+  #tooltip .tt-row { color: #bbb; font-size: 12px; }
+
+  /* 导航面板 */
+  #nav-panel {
+    position: fixed; top: 16px; right: 16px; z-index: 10;
+    background: var(--panel-bg); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    padding: 14px 16px; color: var(--text); width: 280px;
+    font-size: 13px; max-height: calc(100vh - 160px); overflow-y: auto;
+  }
+  #nav-panel h3 { font-size: 14px; margin: 0 0 10px; color: var(--accent); }
+  #nav-panel input { width: 100%; padding: 6px 10px; margin: 4px 0 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: var(--text); font-size: 13px; outline: none; }
+  #nav-panel input:focus { border-color: var(--accent); }
+  #nav-panel label { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; margin: 3px 0; cursor: pointer; white-space: nowrap; }
+  #nav-panel input[type="checkbox"] { width: 14px; height: 14px; flex-shrink: 0; margin: 0; }
+  #nav-panel button { width: 100%; padding: 8px; margin-top: 8px; border-radius: 8px; border: none; background: var(--accent); color: #1a1d23; font-weight: 600; cursor: pointer; font-size: 13px; }
+  #nav-panel button:hover { opacity: 0.85; }
+  #nav-result { margin-top: 12px; font-size: 12px; line-height: 1.6; }
+  #nav-panel h3 { display: flex; align-items: center; justify-content: space-between; }
+  #nav-toggle { cursor: pointer; color: #888; font-size: 14px; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.2s ease, color 0.2s, border-color 0.2s; }
+  #nav-toggle:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+  #nav-result .step { padding: 4px 8px; margin: 2px 0; border-radius: 4px; background: rgba(255,255,255,0.05); }
+  #nav-result .dist { color: var(--text-dim); font-size: 11px; }
+  #nav-body { max-height: 500px; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4,0,0.6,1); }
+  #nav-panel.collapsed #nav-body { max-height: 0; }
+  #nav-panel.collapsed { padding-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="top-bar">
+  <div id="title-card">
+    <h1 id="network-name">轨道交通</h1>
+    <a href="map2d.html" style="display:inline-block;background:var(--panel-bg);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:4px 14px;color:var(--text);font-size:12px;text-decoration:none;">📐 2D 地图</a>
+  </div>
+</div>
+
+<div id="nav-panel">
+  <h3>🧭 路线导航 <span id="nav-toggle">×</span></h3>
+  <div id="nav-body">
+  <input id="nav-from" placeholder="出发站" list="station-list">
+  <input id="nav-to" placeholder="到达站" list="station-list">
+  <datalist id="station-list"></datalist>
+  <label><input type="checkbox" id="nav-cross"> 越野 (步行≤1500格)</label>
+  <label><input type="checkbox" id="nav-detail"> 详细模式</label>
+  <button id="nav-go">查询路线</button>
+  <div id="nav-result"></div>
+  </div>
+</div>
+
+<div id="legend"><h3>线路图例</h3><div id="legend-list"></div></div>
+<div id="hint"><span>🖱 左键旋转</span> &nbsp;|&nbsp; <span>🖱 中键平移</span> &nbsp;|&nbsp; <span>🖱 右键缩放</span></div>
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ── 数据加载（页面直连，先渲染后初始化） ────
+let data;
+const jsonURL = window.railwayAPI?.jsonURL || 'railway_data.json';
+
+// 显示加载提示
+const loadingDiv = document.createElement('div');
+loadingDiv.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;font-size:18px;z-index:999;background:#1a1d23;';
+loadingDiv.textContent = '正在加载数据...';
+document.body.appendChild(loadingDiv);
+
+// 监听打开本地文件
+if (window.railwayAPI) window.railwayAPI.onOpenLocal(d => { data = d; loadingDiv.remove(); initApp(); });
+
+try {
+  const res = await fetch(jsonURL);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  data = await res.json();
+} catch(e) {
+  loadingDiv.textContent = '数据加载失败，请使用 文件→打开本地JSON';
+  throw e;
+}
+loadingDiv.remove();
+
+function initApp() {
+
+// 地面高度：取所有站点最低 y 坐标再往下偏移
+const allY = data.stations.flatMap(s => s.levels.map(l => l.coordinate.y));
+const GROUND_Y = Math.min(...allY) - 15;
+
+// ── 常量 ──────────────────────────────────────
+const STATION_RADIUS = 6;
+const STATION_SEGMENTS = 32;
+
+// ── 场景初始化 ────────────────────────────────
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#1a1d23');
+scene.fog = new THREE.Fog('#1a1d23', 4000, 15000);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 5, 8000);
+camera.position.set(350, 300, 800);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+// CSS2D 渲染器（标签）
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(container.clientWidth, container.clientHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+// OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(-50, 60, 540);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 10;
+controls.maxDistance = 4000;
+controls.maxPolarAngle = Math.PI * 0.75;
+// 鼠标映射：左键旋转、中键平移、右键缩放
+controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
+controls.mouseButtons.RIGHT = THREE.MOUSE.DOLLY;
+controls.update();
+
+// ── 光照 ──────────────────────────────────────
+const ambient = new THREE.AmbientLight('#8899bb', 1.4);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight('#ffffff', 2.5);
+sun.position.set(300, 400, 200);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.left = -4000;
+sun.shadow.camera.right = 4000;
+sun.shadow.camera.top = 4000;
+sun.shadow.camera.bottom = -4000;
+sun.shadow.camera.far = 10000;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight('#8899cc', '#334455', 0.6);
+scene.add(hemi);
+
+// ── 辅助元素 ──────────────────────────────────
+// 地面网格（方形，匹配 Minecraft 坐标风格）
+const gridSize = 6144;
+// 大地板半透明平面
+const groundGeo = new THREE.PlaneGeometry(gridSize, gridSize);
+const groundMat = new THREE.MeshStandardMaterial({ color: '#1d2027', roughness: 1, metalness: 0, transparent: true, opacity: 0.55 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = GROUND_Y - 0.5;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ── 地板纹理：拼接4张地图图片 ──────────────────
+(function setupGroundTexture() {
+  const imgFiles = ['地图1.png','地图2.png','地图3.png','地图4.png'];
+  const loadImg = src => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+  Promise.all(imgFiles.map(loadImg)).then(imgs => {
+    // 计算拼接尺寸：2x2 排列
+    const cols = 2, rows = 2;
+    const cellW = Math.max(...imgs.map(i => i.width));
+    const cellH = Math.max(...imgs.map(i => i.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = cellW * cols;
+    canvas.height = cellH * rows;
+    const ctx = canvas.getContext('2d');
+    // 地图1(+x,+z) 地图2(-x,+z) 地图3(+x,-z) 地图4(-x,-z)
+    const order = [3, 2, 1, 0]; // 地图4(左上) 地图3(右上) 地图2(左下) 地图1(右下)
+    imgs.forEach((img, i) => {
+      const idx = order[i];
+      const col = i % cols, row = Math.floor(i / cols);
+      ctx.drawImage(imgs[idx], col * cellW, row * cellH, cellW, cellH);
+    });
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    ground.material.map = tex;
+    ground.material.color.set('#ffffff');
+    ground.material.opacity = 1;
+    ground.material.transparent = false;
+    ground.material.needsUpdate = true;
+  }).catch(() => {
+    // 加载失败则保持原样
+    console.warn('背景图片加载失败，使用纯色地板');
+  });
+})();
+
+
+// ── 构建线路索引 ──────────────────────────────
+const lineMap = {};
+for (const l of data.lines) lineMap[l.lineId] = l;
+
+// 收集每个线路的所有层级（用于连线）
+const lineLevels = {}; // lineId → [{station, levelObj}]
+for (const st of data.stations) {
+  for (const lv of st.levels) {
+    if (!lineLevels[lv.lineId]) lineLevels[lv.lineId] = [];
+    lineLevels[lv.lineId].push({ station: st, level: lv });
+  }
+}
+
+// ── 工具函数 ──────────────────────────────────
+function toVec3(coord) {
+  return new THREE.Vector3(coord.x, coord.y, coord.z);
+}
+
+// ── 绘制线路连线 (TubeGeometry 单管道) ──────
+const lineGroup = new THREE.Group();
+scene.add(lineGroup);
+
+const TUBE_RADIUS = 2.5;
+const TUBE_SEGMENTS = 80;
+const TUBE_RADIAL = 8;
+
+for (const [lineId, items] of Object.entries(lineLevels)) {
+  const line = lineMap[lineId];
+  if (!line) continue;
+  const color = new THREE.Color(line.color || '#888');
+  const isPlanned = line.type === 'Planned';
+
+  if (items.length < 2) continue;
+
+  // 构建全路径点：站点层级 + via 拐点（手动控制弧线/折线）
+  const allPts = [];
+  for (const item of items) {
+    allPts.push({ x: item.level.coordinate.x, y: item.level.coordinate.y, z: item.level.coordinate.z, type: 'station', data: item });
+  }
+  if (line.via) {
+    for (const v of line.via) {
+      allPts.push({ x: v.x, y: v.y, z: v.z, type: 'via', curve: v.curve || false });
+    }
+  }
+  allPts.sort((a, b) => a.x - b.x);
+
+  const fullPath = new THREE.CurvePath();
+  const bendR = 50; // 弧半径
+  for (let i = 1; i < allPts.length; i++) {
+    const prev = allPts[i - 1];
+    const curr = allPts[i];
+    const pp = new THREE.Vector3(prev.x, prev.y, prev.z);
+    const cp = new THREE.Vector3(curr.x, curr.y, curr.z);
+
+    if (curr.type === 'via' && curr.curve && i + 1 < allPts.length) {
+      // 弧线拐弯：prev → 弧线拐角(curr) → next
+      const next = allPts[i + 1];
+      const np = new THREE.Vector3(next.x, next.y, next.z);
+      const d1 = cp.clone().sub(pp); d1.setLength(Math.min(bendR, d1.length() * 0.45));
+      const d2 = cp.clone().sub(np); d2.setLength(Math.min(bendR, d2.length() * 0.45));
+      const c1 = cp.clone().sub(d1);
+      const c2 = cp.clone().sub(d2);
+      fullPath.add(new THREE.LineCurve3(pp, c1));
+      fullPath.add(new THREE.QuadraticBezierCurve3(c1, cp, c2));
+      fullPath.add(new THREE.LineCurve3(c2, np));
+      i++; // 跳过 next，已作为弧线段终点处理
+    } else {
+      // 折线直连
+      fullPath.add(new THREE.LineCurve3(pp, cp));
+    }
+  }
+
+  if (isPlanned) {
+    const tubeGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS * 0.5, TUBE_RADIAL, false);
+    const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.4 });
+    const tube = new THREE.Mesh(tubeGeo, tubeMat);
+    tube.castShadow = true; tube.receiveShadow = true;
+    lineGroup.add(tube);
+    // 虚线叠加
+    const dashPts = fullPath.getPoints(allPts.length * 40);
+    const dashGeo = new THREE.BufferGeometry().setFromPoints(dashPts);
+    const dashLine = new THREE.Line(dashGeo, new THREE.LineDashedMaterial({ color, linewidth: 2, dashSize: 10, gapSize: 6 }));
+    dashLine.computeLineDistances();
+    lineGroup.add(dashLine);
+  } else {
+    const tubeGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS, TUBE_RADIAL, false);
+    const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.5 });
+    const tube = new THREE.Mesh(tubeGeo, tubeMat);
+    tube.castShadow = true; tube.receiveShadow = true;
+    lineGroup.add(tube);
+    // 发光外层
+    const glowGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS * 1.6, TUBE_RADIAL, false);
+    const glowTube = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, depthWrite: false }));
+    lineGroup.add(glowTube);
+  }
+}
+
+// ── 绘制同站不同层级的垂直连线（突出同站多层） ──
+const stationLevelGroups = {};
+for (const st of data.stations) stationLevelGroups[st.stationId] = st.levels;
+
+const vDashGroup = new THREE.Group();
+scene.add(vDashGroup);
+
+for (const [, levels] of Object.entries(stationLevelGroups)) {
+  if (levels.length < 2) continue;
+  const sorted = [...levels].sort((a, b) => a.level - b.level);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = toVec3(sorted[i].coordinate);
+    const b = toVec3(sorted[i + 1].coordinate);
+    // 明显虚线：同站多层连接
+    const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+    const mat = new THREE.LineDashedMaterial({ color: '#ffaa00', linewidth: 2, dashSize: 5, gapSize: 4, transparent: true, opacity: 0.7 });
+    const dash = new THREE.Line(geo, mat);
+    dash.computeLineDistances();
+    vDashGroup.add(dash);
+  }
+}
+
+// ── 绘制站点 ──────────────────────────────────
+const stationGroup = new THREE.Group();
+scene.add(stationGroup);
+const stationMeshes = [];
+const sphereGeo = new THREE.SphereGeometry(STATION_RADIUS, STATION_SEGMENTS, STATION_SEGMENTS);
+
+for (const st of data.stations) {
+  // 先收集站点所有层级的 x/z 范围
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const lv of st.levels) {
+    minX = Math.min(minX, lv.coordinate.x); maxX = Math.max(maxX, lv.coordinate.x);
+    minZ = Math.min(minZ, lv.coordinate.z); maxZ = Math.max(maxZ, lv.coordinate.z);
+  }
+  const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+  const bw = Math.max(maxX - minX + 20, 28), bh = Math.max(maxZ - minZ + 20, 28);
+  const maxY = Math.max(...st.levels.map(l => l.coordinate.y));
+  const minY = Math.min(...st.levels.map(l => l.coordinate.y));
+  const padY = STATION_RADIUS * 2;
+  const boxH = maxY - minY + padY * 2;
+  const boxCY = (minY + maxY) / 2;
+
+  // —— 站点3D长方体线框（包裹该站点所有层级） ——
+  const boxGeo = new THREE.BoxGeometry(bw, boxH, bh);
+  const edgeGeo = new THREE.EdgesGeometry(boxGeo);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
+  const wireBox = new THREE.LineSegments(edgeGeo, edgeMat);
+  wireBox.position.set(cx, boxCY, cz);
+  stationGroup.add(wireBox);
+
+  const fillMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+  const fillBox = new THREE.Mesh(boxGeo, fillMat);
+  fillBox.position.copy(wireBox.position);
+  stationGroup.add(fillBox);
+
+  // 各层级球体
+  for (const lv of st.levels) {
+    const line = lineMap[lv.lineId];
+    const color = new THREE.Color(line?.color || '#888');
+    const pos = toVec3(lv.coordinate);
+
+    const sphereMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.4 });
+    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+    sphere.position.copy(pos);
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+    sphere.userData = { station: st, levelObj: lv, line, isStation: true };
+    stationGroup.add(sphere);
+    stationMeshes.push({ mesh: sphere, station: st, levelObj: lv, line });
+  }
+}
+
+// ── CSS 标签 ──────────────────────────────────
+const labelGroup = new THREE.Group();
+scene.add(labelGroup);
+
+// ── 站点标签（含层级数和坐标）
+for (const st of data.stations) {
+  const avgX = st.levels.reduce((s, l) => s + l.coordinate.x, 0) / st.levels.length;
+  const avgY = st.levels.reduce((s, l) => s + l.coordinate.y, 0) / st.levels.length;
+  const avgZ = st.levels.reduce((s, l) => s + l.coordinate.z, 0) / st.levels.length;
+  const pos = new THREE.Vector3(avgX, avgY + STATION_RADIUS + 5, avgZ);
+  const hasMulti = st.levels.length > 1;
+
+  const div = document.createElement('div');
+  const c0 = st.levels[0].coordinate;
+  div.innerHTML = `<span style="font-weight:600;">${st.name}</span>${hasMulti ? ' <span style="color:#ffaa00;font-size:10px;">'+st.levels.length+'层</span>' : ''}<br><span style="font-size:10px;color:#999;">x${c0.x} y${c0.y} z${c0.z}</span>`;
+  div.style.cssText = `
+    color: #ffffff; font-size: 12px;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8), 0 0 3px rgba(0,0,0,0.9);
+    white-space: nowrap; pointer-events: none;
+    letter-spacing: 0.5px; text-align: center; line-height: 1.4;
+  `;
+  const label = new CSS2DObject(div);
+  label.position.copy(pos);
+  label.userData = { isLabel: true };
+  labelGroup.add(label);
+}
+
+// ── Raycaster hover 交互 ──────────────────────
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 10;
+raycaster.params.Line.threshold = 5;
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+let hoveredMesh = null;
+
+function onMouseMove(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(stationMeshes.map(s => s.mesh), false);
+
+  if (hits.length > 0) {
+    const obj = hits[0].object;
+    if (obj.userData.isStation && obj !== hoveredMesh) {
+      // 还原上一个 hover
+      if (hoveredMesh) {
+        hoveredMesh.material.emissive.setHex(hoveredMesh.userData.origEmissive);
+        hoveredMesh.material.emissiveIntensity = hoveredMesh.userData.origEmissiveIntensity;
+        hoveredMesh.scale.set(1, 1, 1);
+      }
+      hoveredMesh = obj;
+      // 保存原始值
+      obj.userData.origEmissive = obj.material.emissive.getHex();
+      obj.userData.origEmissiveIntensity = obj.material.emissiveIntensity;
+      // 高亮
+      obj.material.emissive.set('#ffffff');
+      obj.material.emissiveIntensity = 0.6;
+      obj.scale.set(1.35, 1.35, 1.35);
+
+      const { station, levelObj, line } = obj.userData;
+      const date = station.openingDate ? `${station.openingDate.y}-${String(station.openingDate.m).padStart(2,'0')}-${String(station.openingDate.d).padStart(2,'0')}` : '未知';
+      const levelLabel = levelObj.level >= 0 ? `地上 ${levelObj.level} 层` : `地下 ${Math.abs(levelObj.level)} 层`;
+      const dirLabel = levelObj.direction === 'e,w' ? '东西向' : levelObj.direction === 's,n' ? '南北向' : levelObj.direction;
+      const c = levelObj.coordinate;
+      const sameStationCount = station.levels.length;
+
+      tooltip.innerHTML = `
+        <div class="tt-name">${station.name} ${sameStationCount > 1 ? '<span style="color:#ffaa00;font-size:11px;">('+sameStationCount+'层)</span>' : ''}</div>
+        <div class="tt-row">📍 ${station.district} &nbsp;|&nbsp; 🚉 ${station.platformCount} 站台</div>
+        <div class="tt-row">🏗 ${levelLabel} &nbsp;|&nbsp; 🛤 ${dirLabel} &nbsp;|&nbsp; ${levelObj.tracks} 轨</div>
+        <div class="tt-row">📅 开通: ${date}</div>
+        <div class="tt-row" style="color:#ffcc80;">📐 坐标: x=${c.x} y=${c.y} z=${c.z}</div>
+        <div style="margin-top:6px;"><span class="tt-line" style="background:${line?.color||'#888'}">${line?.lineName||levelObj.lineId}</span> <span style="font-size:10px;color:#999">${line?.type||''}</span></div>
+      `;
+      tooltip.classList.add('visible');
+      tooltip.style.left = e.clientX + 'px';
+      tooltip.style.top = e.clientY + 'px';
+    }
+  } else {
+    if (hoveredMesh) {
+      hoveredMesh.material.emissive.setHex(hoveredMesh.userData.origEmissive);
+      hoveredMesh.material.emissiveIntensity = hoveredMesh.userData.origEmissiveIntensity;
+      hoveredMesh.scale.set(1, 1, 1);
+      hoveredMesh = null;
+    }
+    tooltip.classList.remove('visible');
+  }
+}
+
+window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+// ── 响应式 ────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  labelRenderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// ── 渲染循环 ──────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+
+  // 标签面向相机
+  for (const child of labelGroup.children) {
+    child.lookAt(camera.position);
+  }
+
+  // 导航小球动画
+  const t = performance.now() / 1000;
+  for (const b of navBalls) {
+    const prog = ((t * 0.15) % 1 + b.offset) % 1;
+    b.mesh.position.copy(b.curve.getPointAt(prog));
+  }
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+// 导航小球动画数据
+let navBalls = [];
+
+animate();
+
+// ── 填充分页信息 ──────────────────────────────
+const sysInfo = data.systemInfo || {};
+document.getElementById('network-name').textContent = sysInfo.network || '轨道交通';
+
+// ── 填充图例 ──────────────────────────────────
+const legendList = document.getElementById('legend-list');
+for (const line of data.lines) {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `
+    <span class="legend-dot" style="background:${line.color};box-shadow:0 0 6px ${line.color}"></span>
+    <span>${line.lineName}</span>
+    <span class="legend-badge">${line.type||''}</span>
+  `;
+  legendList.appendChild(item);
+}
+
+console.log(`✅ 轨道交通地图已就绪 — ${data.stations.length} 个站点, ${data.lines.length} 条线路`);
+
+// ═══════════════════════════════════════════════
+// 导航系统
+// ═══════════════════════════════════════════════
+document.getElementById('nav-toggle').onclick = function(){
+  var p = document.getElementById('nav-panel');
+  p.classList.toggle('collapsed');
+  this.style.transform = 'scale(0.8)';
+  setTimeout(() => { this.style.transform = 'scale(1)'; }, 100);
+  setTimeout(() => { this.textContent = p.classList.contains('collapsed') ? '+' : '×'; }, 100);
+};
+const navResult = document.getElementById('nav-result');
+const navFrom = document.getElementById('nav-from');
+const navTo = document.getElementById('nav-to');
+const navCross = document.getElementById('nav-cross');
+const navGo = document.getElementById('nav-go');
+const stationList = document.getElementById('station-list');
+const highlightGroup = new THREE.Group(); scene.add(highlightGroup);
+data.stations.forEach(st => {
+  const opt = document.createElement('option');
+  opt.value = st.name; stationList.appendChild(opt);
+});
+
+// 计算两站点间的实际路径点（含拐弯弧线）
+function getPathPoints(pa, pb, dirA, dirB) {
+  const bendR = 50;
+  if (dirA === dirB) return [toVec3(pa), toVec3(pb)];
+  const ca = toVec3(pa), cb = toVec3(pb);
+  const corner = ca.clone();
+  if (dirA === 'e,w' && dirB === 's,n') corner.x = pb.x;
+  else if (dirA === 's,n' && dirB === 'e,w') corner.z = pb.z;
+  const d1 = corner.clone().sub(ca); d1.setLength(Math.min(bendR, d1.length()*0.45));
+  const d2 = corner.clone().sub(cb); d2.setLength(Math.min(bendR, d2.length()*0.45));
+  const c1 = corner.clone().sub(d1), c2 = corner.clone().sub(d2);
+  return [ca, c1, corner, c2, cb];
+}
+
+function buildGraph() {
+  const nodes = {};
+  const adj = {};
+  for (const st of data.stations) for (const lv of st.levels) {
+    const key = `${st.stationId}|${lv.level}|${lv.lineId}`;
+    nodes[key] = { station: st, levelObj: lv, line: lineMap[lv.lineId] };
+    adj[key] = [];
+  }
+  for (const [lid, items] of Object.entries(lineLevels)) {
+    const line = lineMap[lid];
+    // 构建全路径点（站点层级 + via 拐点）
+    const allPts = [];
+    for (const item of items) {
+      allPts.push({ x: item.level.coordinate.x, y: item.level.coordinate.y, z: item.level.coordinate.z, type: 'station', data: item });
+    }
+    if (line && line.via) {
+      for (const v of line.via) {
+        allPts.push({ x: v.x, y: v.y, z: v.z, type: 'via', curve: v.curve || false });
+      }
+    }
+    allPts.sort((a, b) => a.x - b.x);
+
+    // 逐段连接相邻站点，路径包含中间的 via 拐点
+    for (let si = 0; si < allPts.length; si++) {
+      if (allPts[si].type !== 'station') continue;
+      // 找下一个 station
+      let sj = si + 1;
+      while (sj < allPts.length && allPts[sj].type !== 'station') sj++;
+      if (sj >= allPts.length) continue;
+      const a = allPts[si], b = allPts[sj];
+      const kA = `${a.data.station.stationId}|${a.data.level.level}|${lid}`;
+      const kB = `${b.data.station.stationId}|${b.data.level.level}|${lid}`;
+
+      // 构建完整路径坐标（含中间 via）
+      const pathPts = [toVec3({ x: a.x, y: a.y, z: a.z })];
+      for (let vk = si + 1; vk < sj; vk++) {
+        const v = allPts[vk];
+        const vv = toVec3({ x: v.x, y: v.y, z: v.z });
+        if (v.curve && vk + 1 < sj) {
+          // 弧线拐点：前一段终点 → 拐点 → 下一段起点
+          const next = allPts[vk + 1];
+          const nn = toVec3({ x: next.x, y: next.y, z: next.z });
+          const prevP = pathPts[pathPts.length - 1];
+          const d1 = vv.clone().sub(prevP); d1.setLength(Math.min(50, d1.length() * 0.45));
+          const d2 = vv.clone().sub(nn); d2.setLength(Math.min(50, d2.length() * 0.45));
+          pathPts.push(vv.clone().sub(d1));
+          pathPts.push(vv.clone());
+          pathPts.push(vv.clone().sub(d2));
+        } else {
+          pathPts.push(toVec3({ x: v.x, y: v.y, z: v.z }));
+        }
+      }
+      pathPts.push(toVec3({ x: b.x, y: b.y, z: b.z }));
+
+      let totalDist = 0;
+      for (let p = 1; p < pathPts.length; p++) totalDist += pathPts[p - 1].distanceTo(pathPts[p]);
+      totalDist = Math.round(totalDist) || 10;
+      adj[kA].push({ key: kB, dist: totalDist, type: 'line', lineId: lid, pathPts: pathPts });
+      adj[kB].push({ key: kA, dist: totalDist, type: 'line', lineId: lid, pathPts: [...pathPts].reverse() });
+    }
+  }
+  for (const st of data.stations) {
+    for (let i = 0; i < st.levels.length; i++) {
+      for (let j = i + 1; j < st.levels.length; j++) {
+        const a = st.levels[i], b = st.levels[j];
+        const kA = `${st.stationId}|${a.level}|${a.lineId}`;
+        const kB = `${st.stationId}|${b.level}|${b.lineId}`;
+        const pts = [toVec3(a.coordinate), toVec3(b.coordinate)];
+        adj[kA].push({ key: kB, dist: 15, type: 'transfer', pathPts: pts });
+        adj[kB].push({ key: kA, dist: 15, type: 'transfer', pathPts: [...pts].reverse() });
+      }
+    }
+  }
+  return { nodes, adj };
+}
+
+function dijkstra(graph, startKeys, endStationId, allowCross) {
+  const { nodes, adj } = graph;
+  const dist = {}, prev = {}, prevEdge = {};
+  const pq = [];
+  for (const k of Object.keys(nodes)) dist[k] = Infinity;
+  for (const sk of startKeys) { if (nodes[sk]) { dist[sk] = 0; pq.push({k:sk,d:0}); } }
+  while (pq.length) {
+    pq.sort((a,b) => a.d - b.d);
+    const {k} = pq.shift();
+    if (dist[k] === Infinity) continue;
+    const node = nodes[k]; if (!node) continue;
+    if (node.station.stationId === endStationId) {
+      const path = []; let cur = k;
+      while (cur) { path.unshift(cur); cur = prev[cur]; }
+      const segments = [];
+      for (let i = 1; i < path.length; i++) {
+        const e = prevEdge[path[i]];
+        segments.push({ from: path[i-1], to: path[i], type: e ? e.type : '?', lineId: e ? e.lineId : null, pathPts: e ? e.pathPts : null });
+      }
+      return { path, segments, dist: dist[k] };
+    }
+    for (const e of (adj[k] || [])) {
+      if (dist[e.key] !== undefined && dist[k] + e.dist >= dist[e.key]) continue;
+      dist[e.key] = dist[k] + e.dist;
+      prev[e.key] = k;
+      prevEdge[e.key] = e;
+      pq.push({ k: e.key, d: dist[e.key] });
+    }
+    if (allowCross && node) {
+      for (const [nk, n2] of Object.entries(nodes)) {
+        if (dist[nk] !== undefined && dist[nk] !== Infinity) continue;
+        if (n2.station.stationId === node.station.stationId) continue;
+        const d = Math.round(Math.sqrt(
+          (node.levelObj.coordinate.x-n2.levelObj.coordinate.x)**2+
+          (node.levelObj.coordinate.z-n2.levelObj.coordinate.z)**2));
+        if (d <= 1500 && dist[k] + d < (dist[nk]||Infinity)) {
+          dist[nk] = dist[k] + d;
+          prev[nk] = k;
+          prevEdge[nk] = { type: 'walk', dist: d };
+          pq.push({ k: nk, d: dist[nk] });
+        }
+      }
+    }
+  }
+  return null;
+}
+
+const navDetail = document.getElementById('nav-detail');
+
+function highlightPath(result, graph) {
+  highlightGroup.clear();
+  navBalls = [];
+  if (!result) return;
+  const sphereGeo = new THREE.SphereGeometry(5, 12, 12);
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (const seg of result.segments) {
+    const na = graph.nodes[seg.from], nb = graph.nodes[seg.to];
+    if (!na || !nb) continue;
+    const pts = seg.pathPts && seg.pathPts.length >= 2 ? seg.pathPts : [toVec3(na.levelObj.coordinate), toVec3(nb.levelObj.coordinate)];
+    const curve = new THREE.CurvePath();
+    for (let p = 1; p < pts.length; p++) {
+      if (p === 2 && pts.length === 5) {
+        curve.add(new THREE.QuadraticBezierCurve3(pts[1].clone(), pts[2].clone(), pts[3].clone()));
+        p = 3; continue;
+      }
+      curve.add(new THREE.LineCurve3(pts[p-1].clone(), pts[p].clone()));
+    }
+    const color = seg.type === 'transfer' ? '#ffaa00' : seg.type === 'walk' ? '#ff7043' : '#ffeb3b';
+    const hGeo = new THREE.TubeGeometry(curve, 64, 4, 8, false);
+    highlightGroup.add(new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthTest: true })));
+
+    // 动画小球
+    const totalLen = curve.getLength();
+    const count = Math.max(4, Math.floor(totalLen / 100));
+    for (let a = 0; a < count; a++) {
+      const ball = new THREE.Mesh(sphereGeo, sphereMat.clone());
+      ball.position.copy(curve.getPointAt(0));
+      highlightGroup.add(ball);
+      navBalls.push({ mesh: ball, curve, offset: a / count });
+    }
+  }
+}
+
+navGo.addEventListener('click', () => {
+  const fn = navFrom.value.trim(), tn = navTo.value.trim();
+  if (!fn || !tn) { navResult.innerHTML = '<span style="color:#f88;">请输入出发站和到达站</span>'; return; }
+  const fs = data.stations.find(s => s.name === fn);
+  const ts = data.stations.find(s => s.name === tn);
+  if (!fs) { navResult.innerHTML = `<span style="color:#f88;">未找到: ${fn}</span>`; return; }
+  if (!ts) { navResult.innerHTML = `<span style="color:#f88;">未找到: ${tn}</span>`; return; }
+  if (fs === ts) { navResult.innerHTML = '<span style="color:#f88;">出发站和到达站相同</span>'; return; }
+
+  const g = buildGraph();
+  const sks = fs.levels.map(lv => `${fs.stationId}|${lv.level}|${lv.lineId}`);
+  const result = dijkstra(g, sks, ts.stationId, navCross.checked);
+  if (!result) { navResult.innerHTML = '<span style="color:#f88;">未找到可行路线</span>'; highlightPath(null, g); return; }
+
+  let html = `<div style="font-weight:600;margin-bottom:8px;">🚩 ${fs.name} → ${ts.name} <span style="color:#4fc3f7;">${result.dist}格</span></div>`;
+  const detail = navDetail.checked;
+  let stepNum = 1, totalRide = 0;
+  for (let i = 0; i < result.segments.length; i++) {
+    const seg = result.segments[i];
+    const na = g.nodes[seg.from], nb = g.nodes[seg.to];
+    if (!na || !nb) continue;
+    const pa = na.levelObj.coordinate, pb = nb.levelObj.coordinate;
+    const sd = Math.round(Math.sqrt((pa.x-pb.x)**2+(pa.z-pb.z)**2));
+    if (seg.type === 'transfer') {
+      html += `<div class="step" style="background:rgba(255,170,0,0.15);">🔄 <b>换乘</b>: 在 <b>${na.station.name}</b> 从 ${na.line?.lineName||'?'}(${na.levelObj.level>=0?'地上'+na.levelObj.level:'地下'+Math.abs(na.levelObj.level)}层) → ${nb.line?.lineName||'?'}(${nb.levelObj.level>=0?'地上'+nb.levelObj.level:'地下'+Math.abs(nb.levelObj.level)}层)</div>`;
+    } else if (seg.type === 'walk') {
+      html += `<div class="step" style="background:rgba(255,112,67,0.15);">🚶 <b>步行</b>: ${na.station.name} → ${nb.station.name} (${sd}格)</div>`;
+    } else {
+      totalRide += sd;
+      const dirStr = pa.x < pb.x ? '东' : pa.x > pb.x ? '西' : pa.z < pb.z ? '南' : '北';
+      html += `<div class="step">${stepNum++}. 🚆 乘坐 <b>${na.line?.lineName||seg.lineId}</b> (${na.levelObj.level>=0?'地上'+na.levelObj.level:'地下'+Math.abs(na.levelObj.level)}层): <b>${na.station.name}</b> → <b>${nb.station.name}</b> <span style="color:#4fc3f7;">${sd}格</span> 往${dirStr}`;
+      if (detail) {
+        html += ` <span style="color:#888;font-size:11px;">| 区间${sd}格 | 线路${na.line?.lineName||'?'}</span>`;
+      }
+      html += `</div>`;
+    }
+  }
+  if (detail) {
+    html += `<div class="step" style="color:#888;font-size:11px;">📊 乘坐总距离: ${totalRide}格 | 换乘次数: ${result.segments.filter(s=>s.type==='transfer').length} | 步行段: ${result.segments.filter(s=>s.type==='walk').length}</div>`;
+  }
+  html += `<div class="step" style="color:#4fc3f7;">🏁 到达 <b>${ts.name}</b></div>`;
+  navResult.innerHTML = html;
+  highlightPath(result, g);
+});
+
+} // end initApp
+initApp();
+</script>
+</body>
+</html>

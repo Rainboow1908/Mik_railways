@@ -1,0 +1,7 @@
+.reasonix/
+AGENTS.md
+node_modules/
+dist/
+*.exe
+package-lock.json
+PROJECT.md

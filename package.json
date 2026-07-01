@@ -1,0 +1,28 @@
+{
+  "name": "mik-railway",
+  "version": "1.0.0",
+  "description": "Minecraft 轨道交通可视化",
+  "author": "Mik",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mik.railway",
+    "productName": "Mik Railways",
+    "electronVersion": "33.0.0",
+    "files": ["main.js", "preload.js", "page/**/*"],
+    "win": {
+      "target": "portable",
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "MikRailways.exe"
+    }
+  }
+}
