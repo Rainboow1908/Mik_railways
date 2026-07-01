@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 
 const UPDATE_URL = 'https://api.github.com/repos/Rainboow1908/Mik_railways/releases/latest';
-const CURRENT_VERSION = '1.2.2';
+const CURRENT_VERSION = '1.2.3';
 let mainWindow;
 
 function checkUpdate() {
