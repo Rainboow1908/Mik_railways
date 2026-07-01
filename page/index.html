@@ -327,8 +327,10 @@ for (const [lineId, items] of Object.entries(lineLevels)) {
   }
   allPts.sort((a, b) => a.x - b.x);
 
-  const fullPath = new THREE.CurvePath();
   const bendR = 50; // 弧半径
+
+  // 构建单个 CurvePath，处理弧线段时把弧线区域作平滑处理
+  const fullPath = new THREE.CurvePath();
   for (let i = 1; i < allPts.length; i++) {
     const prev = allPts[i - 1];
     const curr = allPts[i];
@@ -346,35 +348,41 @@ for (const [lineId, items] of Object.entries(lineLevels)) {
       fullPath.add(new THREE.LineCurve3(pp, c1));
       fullPath.add(new THREE.QuadraticBezierCurve3(c1, cp, c2));
       fullPath.add(new THREE.LineCurve3(c2, np));
-      i++; // 跳过 next，已作为弧线段终点处理
+      i++; // 跳过 next
     } else {
       // 折线直连
       fullPath.add(new THREE.LineCurve3(pp, cp));
     }
   }
 
+  // 逐段生成管道，折线段独立渲染避免 TubeGeometry 拐角平滑过渡
+  const curves = fullPath.curves;
+  for (let ci = 0; ci < curves.length; ci++) {
+    const segPath = new THREE.CurvePath();
+    segPath.add(curves[ci]);
+    const segGeo = new THREE.TubeGeometry(segPath, isPlanned ? TUBE_SEGMENTS / 2 : TUBE_SEGMENTS, isPlanned ? TUBE_RADIUS * 0.5 : TUBE_RADIUS, TUBE_RADIAL, false);
+    if (isPlanned) {
+      const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.4 });
+      const tube = new THREE.Mesh(segGeo, tubeMat);
+      tube.castShadow = true; tube.receiveShadow = true;
+      lineGroup.add(tube);
+    } else {
+      const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.5 });
+      const tube = new THREE.Mesh(segGeo, tubeMat);
+      tube.castShadow = true; tube.receiveShadow = true;
+      lineGroup.add(tube);
+      const glowGeo = new THREE.TubeGeometry(segPath, TUBE_SEGMENTS, TUBE_RADIUS * 1.6, TUBE_RADIAL, false);
+      const glowTube = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, depthWrite: false }));
+      lineGroup.add(glowTube);
+    }
+  }
+  // 虚线叠加（Planned）
   if (isPlanned) {
-    const tubeGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS * 0.5, TUBE_RADIAL, false);
-    const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.4 });
-    const tube = new THREE.Mesh(tubeGeo, tubeMat);
-    tube.castShadow = true; tube.receiveShadow = true;
-    lineGroup.add(tube);
-    // 虚线叠加
     const dashPts = fullPath.getPoints(allPts.length * 40);
     const dashGeo = new THREE.BufferGeometry().setFromPoints(dashPts);
     const dashLine = new THREE.Line(dashGeo, new THREE.LineDashedMaterial({ color, linewidth: 2, dashSize: 10, gapSize: 6 }));
     dashLine.computeLineDistances();
     lineGroup.add(dashLine);
-  } else {
-    const tubeGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS, TUBE_RADIAL, false);
-    const tubeMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.5 });
-    const tube = new THREE.Mesh(tubeGeo, tubeMat);
-    tube.castShadow = true; tube.receiveShadow = true;
-    lineGroup.add(tube);
-    // 发光外层
-    const glowGeo = new THREE.TubeGeometry(fullPath, TUBE_SEGMENTS, TUBE_RADIUS * 1.6, TUBE_RADIAL, false);
-    const glowTube = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, depthWrite: false }));
-    lineGroup.add(glowTube);
   }
 }
 
