@@ -2,7 +2,7 @@ const { app, BrowserWindow, Menu, dialog } = require('electron');
 const path = require('path');
 
 const UPDATE_URL = 'https://api.github.com/repos/Rainboow1908/Mik_railways/releases/latest';
-const CURRENT_VERSION = '1.1.0';
+const CURRENT_VERSION = '1.2.0';
 let mainWindow;
 
 function createWindow() {
