@@ -55,10 +55,15 @@
 ```json
 {
   "lineId": "L001",
-  "lineName": "Line XBRM1",
-  "description": "x轴边界轨道线",
-  "color": "#D32F2F",
-  "type": "Metro"
+  "lineName": "Line 2",
+  "description": "Line 2",
+  "color": "#4CAF50",
+  "type": "Metro",
+  "via": [
+    {"x": -1008, "y": 88, "z": 654, "curve": false},
+    {"x": -971, "y": 100, "z": 654, "curve": false},
+    {"x": -933, "y": 135, "z": 654, "curve": false}
+  ]
 }
 ```
 
@@ -69,6 +74,7 @@
 | `description` | 字符串 | ❌ | 线路补充描述（中文） |
 | `color` | 字符串 | ❌ | 线路代表色（十六进制），用于地图可视化 |
 | `type` | 字符串 | ❌ | 线路类型，如 `"Metro"`、`"Planned"`、`"Light Rail"` 等 |
+| `via` | 数组 | ❌ | 线路拐点列表，每个拐点为坐标对象 `{"x", "y", "z", "curve"}`。`curve: true` 表示该拐点处使用贝塞尔弧线平滑转弯，`curve: false` 则为折线尖角。拐点与站点按 x 坐标排序后共同构成线路路径 |
 
 ---
 
@@ -120,11 +126,11 @@
 
 ## 7. 扩展示例：如何新增站点
 
-若需添加新车站，只需在 `stations` 数组末尾追加一个对象，并引用已有线路 ID。例如新增“人民广场站”：
+若需添加新车站，只需在 `stations` 数组末尾追加一个对象，并引用已有线路 ID。例如新增"人民广场站"（注意使用未被占用的 `stationId`，如 `ST007`）：
 
 ```json
 {
-  "stationId": "ST003",
+  "stationId": "ST007",
   "name": "人民广场站",
   "district": "主城区",
   "openingDate": {"y": 2026, "m": 1, "d": 15},
@@ -145,11 +151,11 @@
 
 ## 8. 如何新增线路
 
-在 `lines` 数组末尾添加新线路对象，并为其分配新的 `lineId`，之后即可在站点层级中引用。
+在 `lines` 数组末尾添加新线路对象，并为其分配新的 `lineId`（如 `L010`，避免与已有 ID 冲突），之后即可在站点层级中引用。
 
 ```json
 {
-  "lineId": "L003",
+  "lineId": "L010",
   "lineName": "环线",
   "description": "城市环形轨道",
   "color": "#FFA500",
@@ -173,6 +179,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | 1.1 | 2026-06-29 | 日期改为对象格式，移除 `city`、`status`、`electrified`、`speedLimit`，增加 `tracks`，方向简写为 `e,w` / `s,n` |
+| 1.2 | 2026-07-01 | 线路对象增加 `via` 拐点数组（支持折线/弧线手动控制），弃用自动方向检测弧线 |
 
 ---
 
@@ -188,17 +195,25 @@
   "lines": [
     {
       "lineId": "L001",
-      "lineName": "Line XBRM1",
-      "description": "x轴边界轨道线",
-      "color": "#D32F2F",
-      "type": "Metro"
+      "lineName": "Line 2",
+      "description": "Line 2",
+      "color": "#4CAF50",
+      "type": "Metro",
+      "via": [
+        {"x": -1008, "y": 88, "z": 654, "curve": false},
+        {"x": -971, "y": 100, "z": 654, "curve": false},
+        {"x": -933, "y": 135, "z": 654, "curve": false}
+      ]
     },
     {
       "lineId": "L002",
-      "lineName": "Line 404NOTFOUND",
-      "description": "未命名线路",
-      "color": "#388E3C",
-      "type": "Planned"
+      "lineName": "Line M2",
+      "description": "Line M2",
+      "color": "#CE93D8",
+      "type": "Metro",
+      "via": [
+        {"x": 103, "y": 41, "z": 114, "curve": true}
+      ]
     }
   ],
   "stations": [
@@ -227,14 +242,78 @@
     },
     {
       "stationId": "ST002",
-      "name": "未命名站",
-      "district": "未命名区",
+      "name": "大垭山",
+      "district": "主城区",
       "openingDate": {"y": 2025, "m": 12, "d": 29},
       "platformCount": 1,
       "levels": [
         {
           "level": 1,
           "coordinate": {"x": -232, "y": 106, "z": 553},
+          "direction": "e,w",
+          "lineId": "L001",
+          "tracks": 2
+        }
+      ]
+    },
+    {
+      "stationId": "ST003",
+      "name": "主城站",
+      "district": "主城中心",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": -1,
+          "coordinate": {"x": -38, "y": 41, "z": 101},
+          "direction": "e,w",
+          "lineId": "L002",
+          "tracks": 2
+        }
+      ]
+    },
+    {
+      "stationId": "ST006",
+      "name": "城西总站",
+      "district": "主城西区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": -1,
+          "coordinate": {"x": -179, "y": 41, "z": 101},
+          "direction": "e,w",
+          "lineId": "L002",
+          "tracks": 2
+        }
+      ]
+    },
+    {
+      "stationId": "ST004",
+      "name": "望风港站",
+      "district": "望风港区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": 1,
+          "coordinate": {"x": -874, "y": 136, "z": 654},
+          "direction": "e,w",
+          "lineId": "L001",
+          "tracks": 2
+        }
+      ]
+    },
+    {
+      "stationId": "ST005",
+      "name": "望风古楼站",
+      "district": "红石音乐区",
+      "openingDate": {"y": 2025, "m": 12, "d": 29},
+      "platformCount": 2,
+      "levels": [
+        {
+          "level": 2,
+          "coordinate": {"x": -1459, "y": 88, "z": 654},
           "direction": "e,w",
           "lineId": "L001",
           "tracks": 2
