@@ -678,7 +678,7 @@ function buildGraph() {
       for (let vk = si + 1; vk < sj; vk++) {
         const v = allPts[vk];
         const vv = toVec3({ x: v.x, y: v.y, z: v.z });
-        if (v.curve && vk + 1 < sj) {
+        if (v.curve && vk + 1 <= sj) {
           // 弧线拐点：前一段终点 → 拐点 → 下一段起点
           const next = allPts[vk + 1];
           const nn = toVec3({ x: next.x, y: next.y, z: next.z });

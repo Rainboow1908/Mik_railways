@@ -450,7 +450,7 @@ function buildGraph2() {
       const pathPts = [{ x: a.x, z: a.z }];
       for (let vk = si + 1; vk < sj; vk++) {
         const v = allNavPts[vk];
-        if (v.curve && vk + 1 < sj) {
+        if (v.curve && vk + 1 <= sj) {
           const next = allNavPts[vk + 1];
           const ppW = { x: vk === si + 1 ? a.x : allNavPts[vk - 1].x, z: vk === si + 1 ? a.z : allNavPts[vk - 1].z };
           const cpW = { x: v.x, z: v.z };
