@@ -35,11 +35,11 @@
   #nav-panel input[type=checkbox] { width:14px; height:14px; flex-shrink:0; margin:0; }
   #nav-panel button { width:100%; padding:8px; margin-top:8px; border-radius:8px; border:none; background:var(--accent); color:#1a1d23; font-weight:600; cursor:pointer; font-size:13px; }
   #nav-panel button:hover { opacity:0.85; }
-  #nav-result { margin-top:12px; font-size:12px; line-height:1.6; max-height:400px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#444 #1a1d23; }
+  #nav-result { margin-top:12px; font-size:12px; line-height:1.6; flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#444 #1a1d23; min-height:0; }
   #nav-result .step { padding:4px 8px; margin:2px 0; border-radius:4px; background:rgba(255,255,255,0.05); }
   #nav-toggle { cursor:pointer; color:#888; font-size:14px; border:1px solid rgba(255,255,255,0.15); border-radius:4px; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform 0.2s; }
   #nav-toggle:hover { color:#fff; border-color:rgba(255,255,255,0.3); }
-  #nav-body { max-height:500px; overflow:hidden; transition:max-height 0.35s cubic-bezier(0.4,0,0.6,1); }
+  #nav-body { max-height:500px; overflow:hidden; display:flex; flex-direction:column; transition:max-height 0.35s cubic-bezier(0.4,0,0.6,1); }
   #nav-panel.collapsed #nav-body { max-height:0; }
   #nav-panel.collapsed { padding-bottom:6px; }
 </style>
